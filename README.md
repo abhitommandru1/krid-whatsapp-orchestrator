@@ -1,6 +1,13 @@
-# krid-whatsapp-orchestrator
+# Krid.AI — Multi-Tenant WhatsApp AI Orchestrator
 
-Multi-tenant WhatsApp AI agent built for the Krid.AI take-home. Two demo tenants (a furniture store and an auto care shop) share the same backend but get completely separate system prompts, media libraries, and conversation histories.
+A production-ready SaaS platform that connects multiple businesses to an AI-powered WhatsApp support and sales agent. Each tenant gets an isolated conversation history, custom system prompt, and media library. The admin dashboard provides real-time visibility into all conversations.
+
+**Live URLs**
+- Frontend Dashboard: https://krid-whatsapp-orchestrator.onrender.com
+- Backend API: https://krid-backend-6m15.onrender.com
+- GitHub: https://github.com/abhitommandru1/krid-whatsapp-orchestrator
+
+Two demo tenants (a furniture store and an auto care shop) share the same backend but get completely separate system prompts, media libraries, and conversation histories.
 
 ---
 
@@ -29,10 +36,10 @@ One thing I noticed while building this: Meta's typing indicator API doesn't hav
 ## Stack
 
 - **Backend:** FastAPI + LangGraph + Motor (async MongoDB)
-- **LLM:** Anthropic Claude (`claude-sonnet-4-6`)
+- **LLM:** Anthropic Claude Haiku (`claude-haiku-4-5-20251001`)
 - **DB:** MongoDB Atlas (M0 free tier)
 - **Frontend:** React + Vite + Tailwind CSS
-- **Deploy:** Render (free tier, gives you HTTPS out of the box)
+- **Deploy:** Render (Docker backend + Static Site frontend)
 
 ---
 
@@ -75,7 +82,7 @@ Run this once after your `.env` is filled in:
 
 ```bash
 cd backend
-python -m app.db.seed
+python seed.py
 ```
 
 Creates Tenant A (Luxury Furniture) and Tenant B (Automotive Care) with their media libraries.
@@ -105,8 +112,10 @@ ANTHROPIC_API_KEY=sk-ant-...
 ## Testing the webhook locally (ngrok)
 
 ```bash
-ngrok http 8000
+ngrok http 127.0.0.1:8000
 ```
+
+> **Windows note:** Use `127.0.0.1:8000` not `localhost:8000`. On Windows 11, `localhost` resolves to IPv6 (`::1`) but uvicorn listens on IPv4 only, causing ngrok to 502.
 
 Take the `https://xxxx.ngrok-free.app` URL and go to:
 
@@ -168,6 +177,14 @@ class AgentState(BaseModel):
 ```
 
 Routing: after the LLM node, if `session_status == NEEDS_HUMAN` the graph ends without sending anything. Otherwise it goes to the Dispatcher.
+
+---
+
+## Bonus Features Implemented
+
+- **Webhook Signature Validation** — every inbound `POST /api/webhooks/whatsapp` verifies the `X-Hub-Signature-256` HMAC-SHA256 header using `WHATSAPP_APP_SECRET`. Requests that fail verification return `403 Forbidden`.
+- **Fallback Human Handover** — the LLM embeds a hidden sentiment tag (`<!-- sentiment:0.8 -->`) in its reply. If the score is ≥ 0.75, the graph skips the dispatcher, sets `session_status = NEEDS_HUMAN`, and highlights the conversation red on the dashboard. Auto-replies are halted until a human intervenes.
+- **Rich Media via Tool Calling** — Claude uses the `send_media` tool to decide when to attach a PDF catalog or product image based on what the customer is asking for.
 
 ---
 
