@@ -55,12 +55,25 @@ async def inbound_webhook(request: Request, background_tasks: BackgroundTasks):
 
         phone_number_id = changes["metadata"]["phone_number_id"]
         msg = changes["messages"][0]
+        msg_type = msg.get("type", "text")
+
+        inbound_text = ""
+        inbound_media_id = ""
+        inbound_media_caption = ""
+
+        if msg_type == "text":
+            inbound_text = msg.get("text", {}).get("body", "")
+        elif msg_type == "image":
+            inbound_media_id = msg["image"]["id"]
+            inbound_media_caption = msg["image"].get("caption", "")
 
         state = AgentState(
             tenant_id=PHONE_ID_TO_TENANT.get(phone_number_id, "tenant_a"),
             customer_phone=msg["from"],
             message_id=msg["id"],
-            inbound_text=msg.get("text", {}).get("body", ""),
+            inbound_text=inbound_text,
+            inbound_media_id=inbound_media_id,
+            inbound_media_caption=inbound_media_caption,
         )
 
         # critical: kick off async, return 200 immediately

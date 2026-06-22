@@ -88,6 +88,18 @@ async def send_image(to: str, url: str, caption: str = "") -> dict:
         return r.json()
 
 
+async def get_media_url(media_id: str) -> str:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(f"{BASE_URL}/{media_id}", headers=HEADERS)
+        return r.json().get("url", "")
+
+
+async def download_media(url: str) -> bytes:
+    async with httpx.AsyncClient() as client:
+        r = await client.get(url, headers={"Authorization": f"Bearer {settings.whatsapp_token}"})
+        return r.content
+
+
 async def send_document(to: str, url: str, filename: str, caption: str = "") -> dict:
     async with httpx.AsyncClient() as client:
         r = await client.post(

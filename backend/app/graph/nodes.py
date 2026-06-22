@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timezone
 
 import anthropic
@@ -65,10 +66,37 @@ async def context_retriever_node(state: AgentState) -> AgentState:
         limit=5,
     ).to_list(5)
 
+    inbound_text = state.inbound_text
+
+    if state.inbound_media_id:
+        try:
+            media_url = await wa.get_media_url(state.inbound_media_id)
+            image_bytes = await wa.download_media(media_url)
+            b64 = base64.standard_b64encode(image_bytes).decode()
+
+            llm = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+            vision_resp = await llm.messages.create(
+                model="claude-haiku-4-5-20251001",
+                max_tokens=256,
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}},
+                        {"type": "text", "text": "Describe this image briefly in 1-2 sentences."},
+                    ],
+                }],
+            )
+            description = vision_resp.content[0].text
+            caption = state.inbound_media_caption
+            inbound_text = f"[Customer sent an image] {description}" + (f" Caption: {caption}" if caption else "")
+        except Exception:
+            inbound_text = state.inbound_media_caption or "[Customer sent an image]"
+
     return state.model_copy(update={
         "system_prompt": tenant.get("system_prompt", ""),
         "media_library": tenant.get("media_library", {}),
         "history": list(reversed(recent)),
+        "inbound_text": inbound_text,
     })
 
 

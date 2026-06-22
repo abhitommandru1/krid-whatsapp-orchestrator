@@ -15,6 +15,8 @@ class AgentState(BaseModel):
     customer_phone: str
     message_id: str
     inbound_text: str
+    inbound_media_id: str = ""
+    inbound_media_caption: str = ""
 
     # filled by Context Retriever
     system_prompt: str = ""
